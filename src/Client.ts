@@ -122,7 +122,7 @@ export const RE_MENTIONS = /<@([A-z0-9]{26})>/g;
 /**
  * Regular expression for spoilers.
  */
-export const RE_SPOILER = /!!.+!!/g;
+export const RE_SPOILER = /\|\|.+\|\|/g;
 
 export type FileArgs = [
     options?: {
@@ -487,9 +487,7 @@ export class Client extends EventEmitter {
      */
     proxyFile(url: string): string | undefined {
         if (this.configuration?.features.january.enabled) {
-            return `${
-                this.configuration.features.january.url
-            }/proxy?url=${encodeURIComponent(url)}`;
+            return `${this.configuration.features.january.url}/proxy?url=${encodeURIComponent(url)}`;
         }
     }
 
