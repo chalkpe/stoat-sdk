@@ -403,7 +403,7 @@ export class Client extends AsyncEventEmitter<Events> {
 
         return sub;
       })
-      .replace(RE_SPOILER, "<spoiler>");
+      .replace(RE_SPOILER, "(스포일러)");
   }
 
   /**
