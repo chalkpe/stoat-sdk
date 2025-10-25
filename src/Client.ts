@@ -122,7 +122,7 @@ export const RE_MENTIONS = /<@([A-z0-9]{26})>/g;
 /**
  * Regular expression for spoilers.
  */
-export const RE_SPOILER = /\|\|.+\|\|/g;
+export const RE_SPOILER = /\[\[[\s\S]+?\]\]/gm;
 
 export type FileArgs = [
     options?: {
@@ -477,7 +477,7 @@ export class Client extends EventEmitter {
 
                 return sub;
             })
-            .replace(RE_SPOILER, "<spoiler>");
+            .replace(RE_SPOILER, "(스포일러)");
     }
 
     /**
