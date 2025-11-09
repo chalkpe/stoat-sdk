@@ -152,13 +152,13 @@ export class WebSocketClient {
                                 for (const emoji of packet.emojis!) {
                                     this.client.emojis.createObj(emoji);
                                 }
-                            });
 
-                            this.client.user = this.client.users.get(
-                                packet.users.find(
-                                    (x) => x.relationship === "User",
-                                )!._id,
-                            )!;
+                                this.client.user = this.client.users.get(
+                                    packet.users.find(
+                                        (x) => x.relationship === "User",
+                                    )!._id,
+                                )!;
+                            });
 
                             this.client.emit("ready");
                             this.ready = true;
