@@ -296,7 +296,7 @@ export async function handleEvent(
           client.channels.getOrCreate(channel._id, channel);
         }
 
-        for (const state of event.voice_states) {
+        for (const state of event.voice_states ?? []) {
           const channel = client.channels.get(state.id);
           if (channel) {
             channel.voiceParticipants.clear();
