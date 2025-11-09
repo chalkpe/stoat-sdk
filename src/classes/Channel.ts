@@ -1,5 +1,6 @@
 import { batch } from "solid-js";
 
+import { ReactiveMap } from "@solid-primitives/map";
 import type { ReactiveSet } from "@solid-primitives/set";
 import type {
   Channel as APIChannel,
@@ -12,7 +13,7 @@ import type {
   Invite,
   Override,
 } from "stoat-api";
-import type { APIRoutes } from "stoat-api/lib/routes";
+import type { APIRoutes } from "stoat-api";
 import { decodeTime, ulid } from "ulid";
 
 import { ChannelCollection } from "../collections/index.js";
@@ -29,6 +30,7 @@ import type { Message } from "./Message.js";
 import type { Server } from "./Server.js";
 import type { ServerMember } from "./ServerMember.js";
 import type { User } from "./User.js";
+import { VoiceParticipant } from "./VoiceParticipant.js";
 
 /**
  * Channel Class
@@ -38,6 +40,8 @@ export class Channel {
   readonly id: string;
 
   _typingTimers: Record<string, number> = {};
+
+  voiceParticipants = new ReactiveMap<string, VoiceParticipant>();
 
   /**
    * Construct Channel
@@ -229,21 +233,21 @@ export class Channel {
   /**
    * Permissions allowed for users in this group
    */
-  get permissions(): number | undefined {
+  get permissions(): bigint | undefined {
     return this.#collection.getUnderlyingObject(this.id).permissions;
   }
 
   /**
    * Default permissions for this server channel
    */
-  get defaultPermissions(): { a: number; d: number } | undefined {
+  get defaultPermissions(): { a: bigint; d: bigint } | undefined {
     return this.#collection.getUnderlyingObject(this.id).defaultPermissions;
   }
 
   /**
    * Role permissions for this server channel
    */
-  get rolePermissions(): Record<string, { a: number; d: number }> | undefined {
+  get rolePermissions(): Record<string, { a: bigint; d: bigint }> | undefined {
     return this.#collection.getUnderlyingObject(this.id).rolePermissions;
   }
 
@@ -313,8 +317,7 @@ export class Channel {
    * Get mentions in this channel for user.
    */
   get mentions(): ReactiveSet<string> | undefined {
-    if (this.type === "SavedMessages")
-      return undefined;
+    if (this.type === "SavedMessages") return undefined;
 
     return this.#collection.client.channelUnreads.get(this.id)
       ?.messageMentionIds;
@@ -326,7 +329,11 @@ export class Channel {
    * NB. subject to change as vc(2) goes to production
    */
   get isVoice(): boolean {
-    return this.type === 'Group' || this.type === 'DirectMessage' || this.#collection.getUnderlyingObject(this.id).voice;
+    return (
+      this.type === "DirectMessage" ||
+      this.type === "Group" ||
+      typeof this.#collection.getUnderlyingObject(this.id).voice === "object"
+    );
   }
 
   /**
@@ -349,16 +356,16 @@ export class Channel {
   get potentiallyRestrictedChannel(): string | boolean | undefined {
     if (!this.serverId) return false;
     return (
-      bitwiseAndEq(this.defaultPermissions?.d ?? 0, Permission.ViewChannel) ||
+      bitwiseAndEq(this.defaultPermissions?.d ?? 0n, Permission.ViewChannel) ||
       !bitwiseAndEq(this.server!.defaultPermissions, Permission.ViewChannel) ||
       [...(this.server?.roles.keys() ?? [])].find(
         (role) =>
           bitwiseAndEq(
-            this.rolePermissions?.[role]?.d ?? 0,
+            this.rolePermissions?.[role]?.d ?? 0n,
             Permission.ViewChannel,
           ) ||
           bitwiseAndEq(
-            this.server?.roles.get(role)?.permissions.d ?? 0,
+            this.server?.roles.get(role)?.permissions.d ?? 0n,
             Permission.ViewChannel,
           ),
       )
@@ -368,7 +375,7 @@ export class Channel {
   /**
    * Permission the currently authenticated user has against this channel
    */
-  get permission(): number {
+  get permission(): bigint {
     return calculatePermission(this.#collection.client, this);
   }
 
@@ -788,6 +795,30 @@ export class Channel {
     return await this.#collection.client.api.put(
       `/channels/${this.id as ""}/permissions/${role_id as ""}`,
       { permissions: permissions as never },
+    );
+  }
+
+  /**
+   * Join a call
+   * @param node Target node
+   * @param forceDisconnect Whether to disconnect existing call
+   * @param recipients Ring targets
+   * @returns LiveKit URL and Token
+   */
+  async joinCall(
+    node?: string,
+    forceDisconnect = true,
+    recipients?: (User | string)[],
+  ) {
+    return await this.#collection.client.api.post(
+      `/channels/${this.id as ""}/join_call`,
+      {
+        node,
+        recipients: recipients?.map((entry) =>
+          typeof entry === "string" ? entry : entry.id,
+        ),
+        force_disconnect: forceDisconnect,
+      },
     );
   }
 
